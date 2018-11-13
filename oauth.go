@@ -137,12 +137,6 @@ type ServiceProvider struct {
 	HttpMethod        string
 	BodyHash          bool
 	IgnoreTimestamp   bool
-
-	// Enables non spec-compliant behavior:
-	// Allow parameters to be passed in the query string rather
-	// than the body.
-	// See https://github.com/mrjones/oauth/pull/63
-	SignQueryParams bool
 }
 
 func (sp *ServiceProvider) httpMethod() string {
@@ -810,17 +804,14 @@ func parseBody(request *http.Request) (map[string]string, error) {
 	userParams := map[string]string{}
 
 	// TODO(mrjones): factor parameter extraction into a separate method
-	if request.Header.Get("Content-Type") !=
-		"application/x-www-form-urlencoded" {
-		// Most of the time we get parameters from the query string:
-		for k, vs := range request.URL.Query() {
-			if len(vs) != 1 {
-				return nil, fmt.Errorf("Must have exactly one value per param")
-			}
-
-			userParams[k] = vs[0]
+	for k, vs := range request.URL.Query() {
+		if len(vs) != 1 {
+			return nil, fmt.Errorf("Must have exactly one value per param")
 		}
-	} else {
+		userParams[k] = vs[0]
+	}
+
+	if request.Header.Get("Content-Type") == "application/x-www-form-urlencoded" {
 		// x-www-form-urlencoded parameters come from the body instead:
 		body, err := getBody(request)
 		if err != nil {
